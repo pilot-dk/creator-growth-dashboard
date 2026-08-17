@@ -9,6 +9,10 @@ on:
 jobs:
   build-mac:
     runs-on: macos-latest
+    # The default GITHUB_TOKEN is read-only, so electron-builder's publish step
+    # gets a 403 when it tries to create the release without this.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
