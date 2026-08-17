@@ -1,3 +1,5 @@
+<img src="build/icon.png" width="96" align="left" alt="" hspace="8" />
+
 # Creator Growth Dashboard
 
 A growth dashboard for creators who stream or upload on both **YouTube** and **Twitch**. It pulls subscriber/follower growth, best days & times to go live or publish, retention by game, and where viewers drop off into one place — so check-ins are a glance instead of manual digging across two dashboards.

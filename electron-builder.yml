@@ -13,6 +13,7 @@ afterPack: scripts/afterPack.cjs
 
 mac:
   category: public.app-category.productivity
+  icon: build/icon.icns
   target:
     - target: dmg
       arch: [arm64]

@@ -29,6 +29,17 @@ src/
   shared/      Types and constants shared between main and renderer
 ```
 
+## App icon
+
+The icon is generated rather than checked in by hand:
+
+```bash
+python3 scripts/make-icon.py
+```
+
+This writes `build/icon.icns` (used by electron-builder) and `build/icon.png`.
+Edit the colors or bar geometry at the top of the script and re-run to change it.
+
 ## Releasing
 
 Push a tag matching `v*` (e.g. `v0.2.0`) and the `Release macOS build` GitHub
