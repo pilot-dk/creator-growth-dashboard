@@ -13,10 +13,10 @@ export interface PlatformSecrets {
   avatarUrl?: string
 }
 
-interface SecretsFile {
-  youtube?: PlatformSecrets
-  twitch?: PlatformSecrets
-}
+/** Slots for user-supplied credentials, used only when none are baked into the build. */
+export type SecretSlot = 'youtube' | 'twitch' | 'youtubeApiKey'
+
+type SecretsFile = Partial<Record<SecretSlot, PlatformSecrets>>
 
 /**
  * Encrypts credentials at rest using the OS keychain (via Electron's
@@ -66,17 +66,17 @@ class SecureStore {
     writeFileSync(this.filePath, buf, { mode: 0o600 })
   }
 
-  get(platform: 'youtube' | 'twitch'): PlatformSecrets | undefined {
+  get(platform: SecretSlot): PlatformSecrets | undefined {
     return this.load()[platform]
   }
 
-  set(platform: 'youtube' | 'twitch', secrets: PlatformSecrets): void {
+  set(platform: SecretSlot, secrets: PlatformSecrets): void {
     const data = this.load()
     data[platform] = secrets
     this.persist()
   }
 
-  update(platform: 'youtube' | 'twitch', patch: Partial<PlatformSecrets>): void {
+  update(platform: SecretSlot, patch: Partial<PlatformSecrets>): void {
     const data = this.load()
     const existing = data[platform]
     if (!existing) return
@@ -84,7 +84,7 @@ class SecureStore {
     this.persist()
   }
 
-  clear(platform: 'youtube' | 'twitch'): void {
+  clear(platform: SecretSlot): void {
     const data = this.load()
     delete data[platform]
     this.persist()

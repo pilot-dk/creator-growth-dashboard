@@ -41,8 +41,8 @@ export default function TwitchInsights(): JSX.Element {
           <h1>Twitch Insights</h1>
         </header>
         <EmptyState
-          title="Connect Twitch first"
-          description="Retention by game and drop-off timing are built from live viewer samples once you're connected."
+          title="Add your Twitch channel first"
+          description="Paste your Twitch channel link in Settings — retention by game and drop-off timing build up from live viewer samples while you stream."
           ctaLabel="Go to Settings"
           ctaTo="/settings"
         />

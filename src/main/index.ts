@@ -94,7 +94,7 @@ function buildAppMenu(): void {
 
 app.whenReady().then(() => {
   buildAppMenu()
-  registerIpcHandlers(() => mainWindow)
+  registerIpcHandlers()
   createWindow()
 
   livePoller.start((session) => {

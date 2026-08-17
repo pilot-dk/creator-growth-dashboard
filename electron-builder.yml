@@ -15,9 +15,9 @@ mac:
   category: public.app-category.productivity
   target:
     - target: dmg
-      arch: [x64, arm64]
+      arch: [arm64]
     - target: zip
-      arch: [x64, arm64]
+      arch: [arm64]
   # No Apple Developer certificate is wired up for this open-source build, so
   # electron-builder's own signing/notarization is disabled — scripts/afterPack.cjs
   # ad-hoc signs the bundle instead (see that file for why). Users still need to

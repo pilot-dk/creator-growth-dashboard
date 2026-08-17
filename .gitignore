@@ -7,4 +7,5 @@ build
 *.log
 .env
 .env.local
+!.env.example
 *.tsbuildinfo

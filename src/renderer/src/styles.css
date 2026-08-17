@@ -605,3 +605,10 @@ a {
   gap: 12px;
   color: var(--text-dim);
 }
+
+.badge-neutral {
+  background: rgba(139, 152, 165, 0.15);
+  color: var(--text-dim);
+  margin-left: 6px;
+  vertical-align: middle;
+}

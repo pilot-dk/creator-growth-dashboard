@@ -1,92 +1,107 @@
-import { secureStore } from '../store/secureStore'
+import { getTwitchAppCredentials } from '../config/credentials'
+import { settingsStore } from '../store/settingsStore'
 import { dataStore } from '../store/dataStore'
-import { runTwitchOAuth, refreshTwitchToken } from '../oauth/twitch'
+import { parseTwitchUrl } from '../../shared/channelUrl'
 import type { ConnectionStatus, DayScore, TwitchTotals } from '../../shared/types'
 
 const HELIX = 'https://api.twitch.tv/helix'
+const TOKEN_ENDPOINT = 'https://id.twitch.tv/oauth2/token'
 
-async function ensureFreshToken(): Promise<{ token: string; clientId: string }> {
-  const secrets = secureStore.get('twitch')
-  if (!secrets?.accessToken) throw new Error('Twitch is not connected.')
-  const soonToExpire = !secrets.expiresAt || secrets.expiresAt < Date.now() + 60_000
-  if (soonToExpire) {
-    if (!secrets.refreshToken) throw new Error('Twitch session expired. Please reconnect.')
-    const tokens = await refreshTwitchToken(secrets.clientId, secrets.clientSecret, secrets.refreshToken)
-    secureStore.update('twitch', {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      expiresAt: tokens.expiresAt
-    })
-    return { token: tokens.accessToken, clientId: secrets.clientId }
+/**
+ * Twitch access here is an *app* access token (client-credentials grant): the
+ * app authenticates as itself, not as the user. That's enough for everything
+ * this dashboard shows — follower totals, live status/viewer counts, and past
+ * broadcasts — so there's no sign-in step, no redirect URI, and no OAuth
+ * consent screen. The only thing it can't reach is subscriber counts, which
+ * would require a broadcaster user token.
+ */
+let cachedToken: { token: string; expiresAt: number } | null = null
+
+async function getAppToken(): Promise<{ token: string; clientId: string }> {
+  const creds = getTwitchAppCredentials()
+  if (!creds) throw new Error('Twitch API keys are not configured in this build.')
+
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
+    return { token: cachedToken.token, clientId: creds.clientId }
   }
-  return { token: secrets.accessToken, clientId: secrets.clientId }
+
+  const res = await fetch(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: creds.clientId,
+      client_secret: creds.clientSecret,
+      grant_type: 'client_credentials'
+    })
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Twitch app authentication failed: ${res.status} ${text}`)
+  }
+
+  const json = (await res.json()) as { access_token: string; expires_in: number }
+  cachedToken = { token: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 }
+  return { token: json.access_token, clientId: creds.clientId }
 }
 
 async function apiFetch<T>(path: string): Promise<{ status: number; json: T | null }> {
-  const { token, clientId } = await ensureFreshToken()
+  const { token, clientId } = await getAppToken()
   const res = await fetch(`${HELIX}${path}`, {
     headers: { Authorization: `Bearer ${token}`, 'Client-Id': clientId }
   })
   if (res.status === 204) return { status: res.status, json: null }
   const json = (await res.json().catch(() => null)) as T | null
-  if (!res.ok) {
-    return { status: res.status, json }
-  }
   return { status: res.status, json }
 }
 
-export async function connectTwitch(clientId: string, clientSecret: string): Promise<ConnectionStatus> {
-  const tokens = await runTwitchOAuth(clientId, clientSecret)
-  secureStore.set('twitch', {
-    clientId,
-    clientSecret,
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
-    expiresAt: tokens.expiresAt
-  })
+interface TwitchUser {
+  id: string
+  login: string
+  display_name: string
+  profile_image_url: string
+}
 
-  const { json } = await apiFetch<{
-    data: Array<{ id: string; login: string; display_name: string; profile_image_url: string }>
-  }>('/users')
+/** Resolves a pasted twitch.tv URL (or bare name) to a channel and saves it. */
+export async function setTwitchChannel(url: string): Promise<ConnectionStatus> {
+  const login = parseTwitchUrl(url)
+  if (!login) {
+    throw new Error("That doesn't look like a Twitch channel URL. Try something like twitch.tv/yourname")
+  }
+
+  const { json } = await apiFetch<{ data: TwitchUser[] }>(`/users?login=${encodeURIComponent(login)}`)
   const user = json?.data?.[0]
-  if (!user) throw new Error('Could not fetch the Twitch account for these credentials.')
+  if (!user) throw new Error(`No Twitch channel found for "${login}".`)
 
-  secureStore.update('twitch', {
-    accountId: user.id,
-    accountName: user.display_name,
-    avatarUrl: user.profile_image_url
+  settingsStore.patch({
+    twitchUrl: url.trim(),
+    twitchLogin: user.login,
+    twitchUserId: user.id,
+    twitchDisplayName: user.display_name,
+    twitchAvatar: user.profile_image_url
   })
 
   return getTwitchStatus()
 }
 
 export function getTwitchStatus(): ConnectionStatus {
-  const secrets = secureStore.get('twitch')
-  if (!secrets?.accessToken) return { connected: false }
+  const s = settingsStore.all
+  if (!s.twitchUserId) return { connected: false }
   return {
     connected: true,
-    accountId: secrets.accountId,
-    accountName: secrets.accountName,
-    avatarUrl: secrets.avatarUrl,
+    accountId: s.twitchUserId,
+    accountName: s.twitchDisplayName,
+    avatarUrl: s.twitchAvatar,
     lastSyncedAt: dataStore.getLastSynced('twitch') ?? null
   }
 }
 
-export function disconnectTwitch(): void {
-  secureStore.clear('twitch')
+export function clearTwitchChannel(): void {
+  settingsStore.clearTwitch()
 }
 
 export async function getFollowerCount(broadcasterId: string): Promise<number | null> {
   const { json } = await apiFetch<{ total: number }>(`/channels/followers?broadcaster_id=${broadcasterId}&first=1`)
-  return json?.total ?? null
-}
-
-/** Requires Affiliate/Partner status; returns null (not an error) if unavailable. */
-export async function getSubscriberCount(broadcasterId: string): Promise<number | null> {
-  const { status, json } = await apiFetch<{ total?: number }>(
-    `/subscriptions?broadcaster_id=${broadcasterId}&first=1`
-  )
-  if (status === 403) return null
   return json?.total ?? null
 }
 
@@ -122,14 +137,15 @@ export async function getCurrentStream(broadcasterId: string): Promise<TwitchStr
 }
 
 export async function getTwitchTotals(broadcasterId: string, displayName: string): Promise<TwitchTotals> {
-  const [followers, subscribers, stream] = await Promise.all([
+  const [followers, stream] = await Promise.all([
     getFollowerCount(broadcasterId),
-    getSubscriberCount(broadcasterId),
     getCurrentStream(broadcasterId)
   ])
   return {
     followers: followers ?? 0,
-    subscribers,
+    // Subscriber counts need a broadcaster user token, which this app
+    // deliberately doesn't ask for — see the note at the top of this file.
+    subscribers: null,
     isLive: stream.isLive,
     currentGame: stream.gameName,
     currentViewers: stream.viewerCount,
@@ -162,7 +178,7 @@ export async function getTwitchDayScores(broadcasterId: string): Promise<DayScor
   const totals = new Array(7).fill(0) as number[]
   const counts = new Array(7).fill(0) as number[]
   for (const v of videos) {
-    const dow = new Date(v.created_at).getUTCDay()
+    const dow = new Date(v.created_at).getDay()
     totals[dow] += v.view_count
     counts[dow] += 1
   }

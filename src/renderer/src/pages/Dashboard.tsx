@@ -22,8 +22,8 @@ export default function Dashboard(): JSX.Element {
 
       {bothDisconnected && (
         <EmptyState
-          title="Connect an account to get started"
-          description="Link your YouTube channel and/or Twitch channel in Settings to start pulling in analytics."
+          title="Add your channels to get started"
+          description="Paste your YouTube and Twitch channel links in Settings — that's the whole setup."
           ctaLabel="Go to Settings"
           ctaTo="/settings"
         />
@@ -34,7 +34,7 @@ export default function Dashboard(): JSX.Element {
           accent="youtube"
           label="YouTube subscribers"
           value={formatCompactNumber(dashboard.youtubeTotals?.subscribers)}
-          hint={dashboard.youtube.connected ? `Synced ${formatRelativeTime(dashboard.youtube.lastSyncedAt)}` : 'Not connected'}
+          hint={dashboard.youtube.connected ? `Synced ${formatRelativeTime(dashboard.youtube.lastSyncedAt)}` : 'Not set up'}
         />
         <StatCard
           accent="youtube"
@@ -46,7 +46,7 @@ export default function Dashboard(): JSX.Element {
           accent="twitch"
           label="Twitch followers"
           value={formatCompactNumber(dashboard.twitchTotals?.followers)}
-          hint={dashboard.twitch.connected ? `Synced ${formatRelativeTime(dashboard.twitch.lastSyncedAt)}` : 'Not connected'}
+          hint={dashboard.twitch.connected ? `Synced ${formatRelativeTime(dashboard.twitch.lastSyncedAt)}` : 'Not set up'}
         />
         <StatCard
           accent="twitch"
@@ -64,7 +64,7 @@ export default function Dashboard(): JSX.Element {
         {dashboard.growth.length === 0 ? (
           <EmptyState
             title="No history yet"
-            description="Growth history builds up from daily snapshots once you're connected — check back after your first sync."
+            description="Growth history builds up from daily snapshots — check back after your first sync."
           />
         ) : (
           <ResponsiveContainer width="100%" height={320}>

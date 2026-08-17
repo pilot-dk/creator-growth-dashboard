@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import type { CredentialsInput, DashboardSnapshot, Platform } from '@shared/types'
+import type { DashboardSnapshot, Platform } from '@shared/types'
 
 interface DashboardContextValue {
   dashboard: DashboardSnapshot | null
@@ -8,8 +8,6 @@ interface DashboardContextValue {
   error: string | null
   refresh: () => Promise<void>
   syncNow: (platform?: Platform) => Promise<void>
-  connect: (platform: Platform, creds: CredentialsInput) => Promise<{ ok: boolean; message?: string }>
-  disconnect: (platform: Platform) => Promise<void>
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null)
@@ -49,29 +47,8 @@ export function DashboardProvider({ children }: { children: ReactNode }): JSX.El
     [refresh]
   )
 
-  const connect = useCallback(
-    async (platform: Platform, creds: CredentialsInput) => {
-      try {
-        await window.api.connect(platform, creds)
-        await refresh()
-        return { ok: true }
-      } catch (err) {
-        return { ok: false, message: (err as Error).message }
-      }
-    },
-    [refresh]
-  )
-
-  const disconnect = useCallback(
-    async (platform: Platform) => {
-      await window.api.disconnect(platform)
-      await refresh()
-    },
-    [refresh]
-  )
-
   return (
-    <DashboardContext.Provider value={{ dashboard, loading, syncing, error, refresh, syncNow, connect, disconnect }}>
+    <DashboardContext.Provider value={{ dashboard, loading, syncing, error, refresh, syncNow }}>
       {children}
     </DashboardContext.Provider>
   )

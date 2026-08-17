@@ -1,193 +1,214 @@
-import { useState, type FormEvent } from 'react'
-import type { Platform } from '@shared/types'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import type { Platform, SetupInfo } from '@shared/types'
 import { useDashboard } from '../state/DashboardContext'
-import { TWITCH_REDIRECT_URI } from '@shared/constants'
-
-function useCredentialForm(): {
-  clientId: string
-  clientSecret: string
-  setClientId: (v: string) => void
-  setClientSecret: (v: string) => void
-} {
-  const [clientId, setClientId] = useState('')
-  const [clientSecret, setClientSecret] = useState('')
-  return { clientId, clientSecret, setClientId, setClientSecret }
-}
 
 export default function Settings(): JSX.Element {
-  const { dashboard, connect, disconnect } = useDashboard()
+  const { refresh } = useDashboard()
+  const [setup, setSetup] = useState<SetupInfo | null>(null)
+
+  const reload = async (): Promise<void> => {
+    setSetup(await window.api.getSetup())
+    await refresh()
+  }
+
+  useEffect(() => {
+    void window.api.getSetup().then(setSetup)
+  }, [])
+
+  if (!setup) return <div className="page-loading">Loading…</div>
+
+  const { credentials, channels, youtubeAccount } = setup
 
   return (
     <div className="page">
       <header className="page-header">
         <h1>Settings</h1>
-        <p>Bring your own API credentials — nothing is sent anywhere except directly to Google/Twitch, and secrets are encrypted on disk via your OS keychain.</p>
+        <p>Paste your channel links and you're done. Everything stays on this Mac.</p>
       </header>
 
-      <PlatformCard
+      <ChannelCard
         platform="youtube"
         title="YouTube"
-        connected={dashboard?.youtube.connected ?? false}
-        accountName={dashboard?.youtube.accountName}
-        avatarUrl={dashboard?.youtube.avatarUrl}
-        onConnect={(creds) => connect('youtube', creds)}
-        onDisconnect={() => disconnect('youtube')}
-        instructions={
-          <ol>
-            <li>
-              Open the{' '}
-              <ExternalLink href="https://console.cloud.google.com/apis/credentials">
-                Google Cloud Console credentials page
-              </ExternalLink>{' '}
-              (create a project if you don't have one).
-            </li>
-            <li>
-              Enable the <strong>YouTube Data API v3</strong> and <strong>YouTube Analytics API</strong> for the project.
-            </li>
-            <li>
-              Create an OAuth client ID of type <strong>Desktop app</strong>. No redirect URI needs to be registered —
-              Google's desktop/loopback flow accepts any local port automatically.
-            </li>
-            <li>Copy the Client ID and Client Secret below.</li>
-            <li>
-              If your project is in "Testing" publishing status, add your own Google account under{' '}
-              <strong>Audience → Test users</strong> so sign-in isn't blocked.
-            </li>
-          </ol>
-        }
+        placeholder="youtube.com/@yourhandle"
+        available={credentials.youtubePublic}
+        unavailableNote="This build has no YouTube API key baked in. See the README for how to add one."
+        currentUrl={channels.youtubeUrl}
+        currentName={channels.youtubeTitle}
+        avatar={channels.youtubeThumbnail}
+        onSave={(url) => window.api.setChannel('youtube', url)}
+        onClear={() => window.api.clearChannel('youtube')}
+        onDone={reload}
       />
 
-      <PlatformCard
+      <ChannelCard
         platform="twitch"
         title="Twitch"
-        connected={dashboard?.twitch.connected ?? false}
-        accountName={dashboard?.twitch.accountName}
-        avatarUrl={dashboard?.twitch.avatarUrl}
-        onConnect={(creds) => connect('twitch', creds)}
-        onDisconnect={() => disconnect('twitch')}
-        instructions={
-          <ol>
-            <li>
-              Open the{' '}
-              <ExternalLink href="https://dev.twitch.tv/console/apps/create">Twitch developer console</ExternalLink> and
-              register a new application.
-            </li>
-            <li>
-              Set <strong>OAuth Redirect URLs</strong> to exactly:
-              <code className="inline-code">{TWITCH_REDIRECT_URI}</code>
-            </li>
-            <li>
-              Set <strong>Category</strong> to "Application Integration" and grab the Client ID + Client Secret.
-            </li>
-            <li>Paste them below.</li>
-            <li>
-              Subscriber counts require Affiliate/Partner status — the dashboard will simply show follower growth if
-              you're not eligible yet.
-            </li>
-          </ol>
-        }
+        placeholder="twitch.tv/yourname"
+        available={credentials.twitch}
+        unavailableNote="This build has no Twitch API keys baked in. See the README for how to add them."
+        currentUrl={channels.twitchUrl}
+        currentName={channels.twitchDisplayName}
+        avatar={channels.twitchAvatar}
+        onSave={(url) => window.api.setChannel('twitch', url)}
+        onClear={() => window.api.clearChannel('twitch')}
+        onDone={reload}
       />
+
+      <div className="panel">
+        <div className="panel-header">
+          <h2>YouTube retention curves <span className="badge badge-neutral">Optional</span></h2>
+          <p>
+            Per-video audience retention is private data, so it's the one feature that needs you to sign in to
+            your Google account. Everything else works without this.
+          </p>
+        </div>
+
+        {!credentials.youtubeOAuth ? (
+          <p className="note">
+            Not available in this build — no Google OAuth client is configured. See the README to enable it.
+          </p>
+        ) : youtubeAccount.connected ? (
+          <div className="platform-card-header">
+            <div className="platform-connected">
+              {youtubeAccount.avatarUrl && <img src={youtubeAccount.avatarUrl} alt="" className="avatar" />}
+              <span>Signed in as {youtubeAccount.accountName}</span>
+            </div>
+            <button
+              className="btn btn-ghost"
+              onClick={async () => {
+                await window.api.disconnectYouTubeAccount()
+                await reload()
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <ConnectAccountButton onDone={reload} />
+        )}
+      </div>
     </div>
   )
 }
 
-function ExternalLink({ href, children }: { href: string; children: React.ReactNode }): JSX.Element {
+function ConnectAccountButton({ onDone }: { onDone: () => Promise<void> }): JSX.Element {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
   return (
-    <a
-      href={href}
-      onClick={(e) => {
-        e.preventDefault()
-        window.api.openExternal(href)
-      }}
-    >
-      {children}
-    </a>
+    <>
+      <button
+        className="btn btn-primary"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true)
+          setError(null)
+          try {
+            await window.api.connectYouTubeAccount()
+            await onDone()
+          } catch (err) {
+            setError((err as Error).message)
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        {busy ? 'Waiting for browser…' : 'Connect YouTube account'}
+      </button>
+      {error && <div className="form-error">{error}</div>}
+    </>
   )
 }
 
-interface PlatformCardProps {
+interface ChannelCardProps {
   platform: Platform
   title: string
-  connected: boolean
-  accountName?: string
-  avatarUrl?: string
-  instructions: React.ReactNode
-  onConnect: (creds: { clientId: string; clientSecret: string }) => Promise<{ ok: boolean; message?: string }>
-  onDisconnect: () => Promise<void>
+  placeholder: string
+  available: boolean
+  unavailableNote: string
+  currentUrl?: string
+  currentName?: string
+  avatar?: string
+  onSave: (url: string) => Promise<unknown>
+  onClear: () => Promise<void>
+  onDone: () => Promise<void>
 }
 
-function PlatformCard(props: PlatformCardProps): JSX.Element {
-  const { platform, title, connected, accountName, avatarUrl, instructions, onConnect, onDisconnect } = props
-  const form = useCredentialForm()
+function ChannelCard(props: ChannelCardProps): JSX.Element {
+  const { platform, title, placeholder, available, unavailableNote } = props
+  const { currentUrl, currentName, avatar, onSave, onClear, onDone } = props
+
+  const [url, setUrl] = useState(currentUrl ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showInstructions, setShowInstructions] = useState(!connected)
+
+  useEffect(() => setUrl(currentUrl ?? ''), [currentUrl])
 
   async function handleSubmit(e: FormEvent): Promise<void> {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const result = await onConnect({ clientId: form.clientId.trim(), clientSecret: form.clientSecret.trim() })
-    setBusy(false)
-    if (!result.ok) setError(result.message ?? 'Something went wrong.')
+    try {
+      await onSave(url)
+      await onDone()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  let body: ReactNode
+  if (!available) {
+    body = <p className="note">{unavailableNote}</p>
+  } else if (currentName) {
+    body = (
+      <div className="platform-card-header">
+        <div className="platform-connected">
+          {avatar && <img src={avatar} alt="" className="avatar" />}
+          <span>Tracking {currentName}</span>
+        </div>
+        <button
+          className="btn btn-ghost"
+          onClick={async () => {
+            await onClear()
+            setUrl('')
+            await onDone()
+          }}
+        >
+          Change
+        </button>
+      </div>
+    )
+  } else {
+    body = (
+      <form className="credential-form" onSubmit={handleSubmit}>
+        <label>
+          Channel link
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={placeholder}
+            autoComplete="off"
+            spellCheck={false}
+            required
+          />
+        </label>
+        {error && <div className="form-error">{error}</div>}
+        <button className="btn btn-primary" type="submit" disabled={busy}>
+          {busy ? 'Checking…' : `Track this ${title} channel`}
+        </button>
+      </form>
+    )
   }
 
   return (
     <div className={`panel platform-card accent-${platform}`}>
-      <div className="panel-header platform-card-header">
-        <div>
-          <h2>{title}</h2>
-          {connected ? (
-            <div className="platform-connected">
-              {avatarUrl && <img src={avatarUrl} alt="" className="avatar" />}
-              <span>Connected as {accountName}</span>
-            </div>
-          ) : (
-            <p>Not connected</p>
-          )}
-        </div>
-        {connected && (
-          <button className="btn btn-ghost" onClick={() => void onDisconnect()}>
-            Disconnect
-          </button>
-        )}
+      <div className="panel-header">
+        <h2>{title}</h2>
       </div>
-
-      <button className="link-btn" onClick={() => setShowInstructions((v) => !v)}>
-        {showInstructions ? 'Hide setup steps' : 'Show setup steps'}
-      </button>
-      {showInstructions && <div className="instructions">{instructions}</div>}
-
-      {!connected && (
-        <form className="credential-form" onSubmit={handleSubmit}>
-          <label>
-            Client ID
-            <input
-              type="text"
-              value={form.clientId}
-              onChange={(e) => form.setClientId(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              required
-            />
-          </label>
-          <label>
-            Client Secret
-            <input
-              type="password"
-              value={form.clientSecret}
-              onChange={(e) => form.setClientSecret(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              required
-            />
-          </label>
-          {error && <div className="form-error">{error}</div>}
-          <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? 'Opening browser…' : `Connect ${title}`}
-          </button>
-        </form>
-      )}
+      {body}
     </div>
   )
 }

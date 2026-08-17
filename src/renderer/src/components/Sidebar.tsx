@@ -39,11 +39,11 @@ export default function Sidebar(): JSX.Element {
       <div className="sidebar-footer">
         <div className="connection-pill">
           <span className={`dot ${dashboard?.youtube.connected ? 'ok' : 'off'}`} />
-          YouTube {dashboard?.youtube.connected ? 'connected' : 'not connected'}
+          YouTube {dashboard?.youtube.connected ? 'tracking' : 'not set up'}
         </div>
         <div className="connection-pill">
           <span className={`dot ${dashboard?.twitch.connected ? 'ok' : 'off'}`} />
-          Twitch {dashboard?.twitch.connected ? 'connected' : 'not connected'}
+          Twitch {dashboard?.twitch.connected ? 'tracking' : 'not set up'}
         </div>
         <button className="btn btn-ghost sync-btn" disabled={syncing} onClick={() => void syncNow()}>
           {syncing ? 'Syncing…' : 'Sync now'}

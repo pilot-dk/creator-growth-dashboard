@@ -1,4 +1,4 @@
-import { secureStore } from '../store/secureStore'
+import { settingsStore } from '../store/settingsStore'
 import { dataStore } from '../store/dataStore'
 import { getCurrentStream, getFollowerCount } from './twitch'
 import { getYouTubeTotals } from './youtube'
@@ -44,12 +44,12 @@ class LivePoller {
   }
 
   private async tick(): Promise<void> {
-    const secrets = secureStore.get('twitch')
-    if (!secrets?.accountId) return
+    const broadcasterId = settingsStore.all.twitchUserId
+    if (!broadcasterId) return
 
     let status
     try {
-      status = await getCurrentStream(secrets.accountId)
+      status = await getCurrentStream(broadcasterId)
     } catch (err) {
       console.error('[poller] failed to fetch stream status', err)
       return
@@ -67,7 +67,7 @@ class LivePoller {
     if (!this.activeSession || gameChanged || newBroadcast) {
       if (this.activeSession) this.finalizeSession()
       this.overallStreamStartedAt = status.startedAt ?? new Date().toISOString()
-      this.followersAtSessionStart = await getFollowerCount(secrets.accountId).catch(() => null)
+      this.followersAtSessionStart = await getFollowerCount(broadcasterId).catch(() => null)
       this.activeSession = {
         id: `polled:${status.startedAt}:${status.gameId}:${Date.now()}`,
         gameId: status.gameId ?? 'unknown',
@@ -95,15 +95,15 @@ class LivePoller {
 
   private finalizeSession(): void {
     if (!this.activeSession) return
-    const secrets = secureStore.get('twitch')
+    const broadcasterId = settingsStore.all.twitchUserId
     const session = summarize({ ...this.activeSession, endedAt: new Date().toISOString(), isLive: false })
+    const startFollowers = this.followersAtSessionStart
 
-    if (secrets?.accountId && this.followersAtSessionStart != null) {
-      getFollowerCount(secrets.accountId)
+    if (broadcasterId && startFollowers != null) {
+      getFollowerCount(broadcasterId)
         .then((endFollowers) => {
           if (endFollowers == null) return
-          const gained = endFollowers - (this.followersAtSessionStart ?? endFollowers)
-          dataStore.upsertTwitchSession({ ...session, followersGained: gained })
+          dataStore.upsertTwitchSession({ ...session, followersGained: endFollowers - startFollowers })
         })
         .catch(() => undefined)
     }
@@ -116,12 +116,10 @@ class LivePoller {
 
   private async snapshotGrowth(): Promise<void> {
     const today = new Date().toISOString().slice(0, 10)
-    const youtubeSecrets = secureStore.get('youtube')
-    const twitchSecrets = secureStore.get('twitch')
-
+    const settings = settingsStore.all
     const point: { date: string; youtubeSubscribers?: number; twitchFollowers?: number } = { date: today }
 
-    if (youtubeSecrets?.accessToken) {
+    if (settings.youtubeChannelId) {
       try {
         const totals = await getYouTubeTotals()
         point.youtubeSubscribers = totals.subscribers
@@ -131,9 +129,9 @@ class LivePoller {
       }
     }
 
-    if (twitchSecrets?.accountId) {
+    if (settings.twitchUserId) {
       try {
-        const followers = await getFollowerCount(twitchSecrets.accountId)
+        const followers = await getFollowerCount(settings.twitchUserId)
         if (followers != null) point.twitchFollowers = followers
         dataStore.setLastSynced('twitch', new Date().toISOString())
       } catch (err) {

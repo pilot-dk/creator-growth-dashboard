@@ -2,9 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   BestTimesResult,
   ConnectionStatus,
-  CredentialsInput,
   DashboardSnapshot,
   Platform,
+  SetupInfo,
   SyncResult,
   TwitchGameStat,
   TwitchSessionSummary,
@@ -15,13 +15,19 @@ import type {
 const api = {
   getDashboard: (): Promise<DashboardSnapshot> => ipcRenderer.invoke('dashboard:get'),
 
+  getSetup: (): Promise<SetupInfo> => ipcRenderer.invoke('setup:get'),
+
+  setChannel: (platform: Platform, url: string): Promise<ConnectionStatus> =>
+    ipcRenderer.invoke('channel:set', platform, url),
+
+  clearChannel: (platform: Platform): Promise<void> => ipcRenderer.invoke('channel:clear', platform),
+
   getConnectionStatus: (platform: Platform): Promise<ConnectionStatus> =>
     ipcRenderer.invoke('connection:status', platform),
 
-  connect: (platform: Platform, creds: CredentialsInput): Promise<ConnectionStatus> =>
-    ipcRenderer.invoke('connection:connect', platform, creds),
+  connectYouTubeAccount: (): Promise<ConnectionStatus> => ipcRenderer.invoke('youtubeAccount:connect'),
 
-  disconnect: (platform: Platform): Promise<void> => ipcRenderer.invoke('connection:disconnect', platform),
+  disconnectYouTubeAccount: (): Promise<void> => ipcRenderer.invoke('youtubeAccount:disconnect'),
 
   sync: (platform?: Platform): Promise<SyncResult[]> => ipcRenderer.invoke('sync:run', platform),
 

@@ -1,60 +1,64 @@
 # Creator Growth Dashboard
 
-A cross-platform growth dashboard for creators who stream or upload on both **YouTube** and **Twitch**. It pulls subscriber/follower growth, best days & times to go live or publish, retention by game, and where viewers drop off into one place — so check-ins are a glance instead of manual digging across two dashboards.
+A growth dashboard for creators who stream or upload on both **YouTube** and **Twitch**. It pulls subscriber/follower growth, best days & times to go live or publish, retention by game, and where viewers drop off into one place — so check-ins are a glance instead of manual digging across two dashboards.
 
-Runs as a native macOS app. Your API credentials and tokens are encrypted at rest via your Mac's Keychain and never leave your machine except to talk directly to Google/Twitch.
+Native macOS app (Apple Silicon). Everything runs locally — there is no backend, and no data leaves your Mac except direct calls to Google's and Twitch's APIs.
 
 ## Features
 
 - **Unified growth chart** — YouTube subscribers and Twitch followers over time, on one timeline.
-- **Best days & times** — YouTube's best day to publish from your real watch-time history, plus a Twitch day×hour viewer heatmap built from live sessions.
-- **YouTube retention curves** — real per-video audience retention from the YouTube Analytics API, with the biggest drop-off point called out automatically.
-- **Twitch retention by game** — end-of-stream viewer retention and peak/average viewers, broken down by game, plus a live-updating drop-off chart while you're streaming.
-- **Bring your own API credentials** — no bundled secrets, no third-party backend. You connect your own Google Cloud and Twitch developer apps.
+- **Best days & times** — best day to publish on YouTube, plus a Twitch day×hour viewer heatmap built from live sessions.
+- **Twitch retention by game** — end-of-stream viewer retention and peak/average viewers per game, plus a live-updating drop-off chart while you're streaming.
+- **YouTube retention curves** *(optional)* — real per-video audience retention with the biggest drop-off point flagged automatically.
 
-## Why some things only fill in over time
+## Setup
 
-YouTube's Analytics API exposes real per-video audience retention and day-level watch-time history, but it has **no hour-of-day dimension** — so YouTube best-time insights are day-of-week only.
+**In the app, setup is just pasting your two channel links.** That's it — no sign-in, no consent screens.
 
-Twitch's public API doesn't expose historical viewer-count-over-time for past broadcasts to third-party apps at all — that data only exists in Twitch's own creator dashboard. So this app builds its own history by **polling your live viewer count while you stream** (once a minute, only while the app is running and you're live). That means:
+That works because the app authenticates *as itself* using API keys baked in at build time. If you're building from source you'll need to supply your own (they're free, and the app still runs without them — it just asks for them in Settings instead).
 
-- Retention-by-game and the day×hour heatmap start empty and fill in after your first few streams with the app open.
-- Historical streams from before you started using the app won't have drop-off curves — only aggregate stats (view count, start time) pulled from Twitch's video history.
+<details>
+<summary><b>Building from source: getting the keys</b></summary>
 
-## Getting started
+Copy `.env.example` to `.env` and fill in:
 
-### 1. Download
+**`MAIN_VITE_YOUTUBE_API_KEY`** — powers YouTube subscriber/view/video stats.
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create a project.
+2. Enable **YouTube Data API v3**.
+3. **Create credentials → API key**. Copy it. (No OAuth consent screen needed.)
 
-Grab the latest `.dmg` from the [Releases page](../../releases) — pick the **Apple Silicon** build for M1/M2/M3/M4 Macs, or **Intel** for older Macs. Since this build isn't signed with a paid Apple Developer certificate, macOS Gatekeeper will flag it as from an unidentified developer the first time:
+**`MAIN_VITE_TWITCH_CLIENT_ID`** / **`MAIN_VITE_TWITCH_CLIENT_SECRET`** — powers everything Twitch.
+1. Register an app at the [Twitch developer console](https://dev.twitch.tv/console/apps/create).
+2. Set OAuth Redirect URL to `http://localhost` — it's never used, since the app authenticates as itself rather than as you.
+3. Copy the Client ID, then **New Secret** and copy that.
 
-1. Move **Creator Growth Dashboard.app** to Applications.
-2. Right-click the app → **Open** → confirm **Open** in the dialog. (Only needed once.) If you don't see an **Open** option, check **System Settings → Privacy & Security** — there's usually an **Open Anyway** button there after the first blocked attempt.
+**`MAIN_VITE_GOOGLE_OAUTH_CLIENT_ID`** / **`..._SECRET`** *(optional — only for YouTube retention curves)*
+1. Same Google project: also enable **YouTube Analytics API**.
+2. Create an OAuth client ID of type **Desktop app**. No redirect URI to register.
+3. If your consent screen is in "Testing" mode, add your own Google account under **Audience → Test users**.
 
-**If macOS instead says the app "is damaged and can't be opened"**: that's Gatekeeper being overly aggressive about unsigned software, not actual corruption. Open Terminal and run:
+`.env` is gitignored, so keys baked into your build never reach the repo.
+</details>
+
+## Why some things fill in over time
+
+**Twitch's public API doesn't expose historical viewer-count-over-time** to third-party apps — that data only lives in Twitch's own creator dashboard. So this app builds its own history by polling your live viewer count once a minute while you're streaming and the app is open. That means retention-by-game and the day×hour heatmap start empty and fill in after your first few streams. Streams from before you installed the app show aggregate stats only.
+
+**YouTube's Analytics API has no hour-of-day dimension** for channel reports, so YouTube timing insight is day-of-week only. Without the optional sign-in, that day-of-week score is estimated from average views per upload; with it, it uses your real trailing-90-day watch history.
+
+**Twitch subscriber counts** aren't shown — they'd require a broadcaster sign-in, which the app deliberately avoids. Follower growth is tracked instead.
+
+## Install
+
+Download the `.dmg` from the [Releases page](../../releases) and drag the app to Applications.
+
+This build isn't notarized (that needs a paid Apple Developer account), so macOS may refuse to open it. On macOS 15+ the old right-click → Open trick no longer works and you may see **"the app is damaged"** — that's Gatekeeper being strict about un-notarized software, not actual corruption. To clear it:
 
 ```bash
 xattr -cr "/Applications/Creator Growth Dashboard.app"
 ```
 
-then open it normally. (This shouldn't happen on v0.1.1+ — the app is ad-hoc signed specifically to avoid this — but browsers occasionally quarantine downloads in ways that still trip it.)
-
-### 2. Connect your accounts
-
-Open **Settings** in the app and follow the in-app setup steps for each platform. In short:
-
-**YouTube**
-1. Create a project in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
-2. Enable the **YouTube Data API v3** and **YouTube Analytics API**.
-3. Create an OAuth **Desktop app** client ID — no redirect URI to register.
-4. Paste the Client ID/Secret into the app.
-5. If your OAuth consent screen is in "Testing" mode, add your own Google account as a test user.
-
-**Twitch**
-1. Register an app at the [Twitch developer console](https://dev.twitch.tv/console/apps/create).
-2. Add `http://localhost:53682/oauth/callback` as an OAuth Redirect URL (must match exactly).
-3. Paste the Client ID/Secret into the app.
-
-Nothing is uploaded to any server the app's authors run — there isn't one. Requests go straight from your Mac to Google's and Twitch's own APIs.
+Then open it normally. Building from source (below) avoids this entirely, since locally-built apps are never quarantined.
 
 ## Development
 
@@ -62,6 +66,7 @@ Nothing is uploaded to any server the app's authors run — there isn't one. Req
 git clone https://github.com/pilot-dk/creator-growth-dashboard.git
 cd creator-growth-dashboard
 npm install
+cp .env.example .env   # add your keys
 npm run dev
 ```
 
@@ -69,7 +74,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for build/release details.
 
 ## Tech stack
 
-Electron + React + TypeScript, built with [electron-vite](https://electron-vite.org/) and packaged with [electron-builder](https://www.electron.build/). Charts via [Recharts](https://recharts.org/).
+Electron + React + TypeScript, built with [electron-vite](https://electron-vite.org/), packaged with [electron-builder](https://www.electron.build/). Charts via [Recharts](https://recharts.org/).
 
 ## License
 

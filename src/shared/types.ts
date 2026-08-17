@@ -12,9 +12,31 @@ export interface ConnectionStatus {
   error?: string | null
 }
 
-export interface CredentialsInput {
-  clientId: string
-  clientSecret: string
+export interface CredentialAvailability {
+  /** API key present, so public YouTube stats work. */
+  youtubePublic: boolean
+  /** Twitch app keys present, so all Twitch features work. */
+  twitch: boolean
+  /** Google OAuth client present, so the optional retention feature is offered. */
+  youtubeOAuth: boolean
+}
+
+export interface ChannelSettings {
+  youtubeUrl?: string
+  youtubeChannelId?: string
+  youtubeTitle?: string
+  youtubeThumbnail?: string
+  twitchUrl?: string
+  twitchLogin?: string
+  twitchUserId?: string
+  twitchDisplayName?: string
+  twitchAvatar?: string
+}
+
+export interface SetupInfo {
+  credentials: CredentialAvailability
+  channels: ChannelSettings
+  youtubeAccount: ConnectionStatus
 }
 
 export interface GrowthPoint {

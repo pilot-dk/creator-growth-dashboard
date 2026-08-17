@@ -1,6 +1,6 @@
-import { secureStore } from '../store/secureStore'
+import { settingsStore } from '../store/settingsStore'
 import { dataStore } from '../store/dataStore'
-import { getYouTubeDayScores } from './youtube'
+import { getYouTubeDayScores, isYouTubeAccountConnected } from './youtube'
 import { getTwitchDayScores } from './twitch'
 import type { BestTimesResult, DayHourCell, DayScore } from '../../shared/types'
 
@@ -37,32 +37,34 @@ function dayHourFromPolledSessions(): { cells: DayHourCell[]; sessionCount: numb
 
 export async function computeBestTimes(): Promise<BestTimesResult> {
   const notes: string[] = []
-  const youtubeSecrets = secureStore.get('youtube')
-  const twitchSecrets = secureStore.get('twitch')
+  const settings = settingsStore.all
 
   let youtubeByDay: DayScore[] = []
-  if (youtubeSecrets?.accessToken) {
+  if (settings.youtubeChannelId) {
     try {
       youtubeByDay = await getYouTubeDayScores()
     } catch (err) {
       console.error('[bestTimes] youtube day scores failed', err)
     }
+
+    notes.push(
+      isYouTubeAccountConnected()
+        ? 'YouTube: day-of-week uses your real trailing 90-day watch history. The Analytics API has no hour-of-day dimension for channels, so hour-level timing isn’t available for YouTube.'
+        : 'YouTube: day-of-week is estimated from average views per upload, grouped by the day each video went out. Connect your YouTube account in Settings to use real watch-history data instead.'
+    )
   }
-  notes.push(
-    'YouTube: day-of-week is based on your trailing 90-day watch history. The Analytics API has no hour-of-day dimension for channels, so hour-level timing isn’t available for YouTube.'
-  )
 
   let twitchByDay: DayScore[] = []
-  if (twitchSecrets?.accountId) {
+  if (settings.twitchUserId) {
     try {
-      twitchByDay = await getTwitchDayScores(twitchSecrets.accountId)
+      twitchByDay = await getTwitchDayScores(settings.twitchUserId)
     } catch (err) {
       console.error('[bestTimes] twitch day scores failed', err)
     }
   }
 
   const { cells: twitchByDayHour, sessionCount } = dayHourFromPolledSessions()
-  if (sessionCount < MIN_POLLED_SESSIONS_FOR_HOUR_GRID) {
+  if (settings.twitchUserId && sessionCount < MIN_POLLED_SESSIONS_FOR_HOUR_GRID) {
     notes.push(
       `Twitch hour-of-day grid needs a few live sessions with the app running (${sessionCount}/${MIN_POLLED_SESSIONS_FOR_HOUR_GRID} so far) — Twitch’s public API doesn’t expose historical viewer counts, so this builds up only while you stream with the app open.`
     )

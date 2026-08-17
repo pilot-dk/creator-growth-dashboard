@@ -30,8 +30,8 @@ export default function BestTimes(): JSX.Element {
 
       {neitherConnected && (
         <EmptyState
-          title="Connect a platform first"
-          description="Best-time insights need at least one connected account."
+          title="Add a channel first"
+          description="Paste at least one channel link in Settings to see timing insights."
           ctaLabel="Go to Settings"
           ctaTo="/settings"
         />
@@ -41,7 +41,7 @@ export default function BestTimes(): JSX.Element {
         <div className="panel">
           <div className="panel-header">
             <h2>YouTube — best day to publish</h2>
-            <p>Trailing 90-day views, aggregated by day of week.</p>
+            <p>Which day your uploads land best. See the note below for how it's measured.</p>
           </div>
           {data && data.youtubeByDay.some((d) => d.sampleCount > 0) ? (
             <ResponsiveContainer width="100%" height={220}>

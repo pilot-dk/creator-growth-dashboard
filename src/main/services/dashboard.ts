@@ -1,4 +1,4 @@
-import { secureStore } from '../store/secureStore'
+import { settingsStore } from '../store/settingsStore'
 import { dataStore } from '../store/dataStore'
 import { getYouTubeStatus, getYouTubeTotals } from './youtube'
 import { getTwitchStatus, getTwitchTotals } from './twitch'
@@ -7,11 +7,12 @@ import type { DashboardSnapshot, SyncResult } from '../../shared/types'
 export async function getDashboard(): Promise<DashboardSnapshot> {
   const youtube = getYouTubeStatus()
   const twitch = getTwitchStatus()
+  const settings = settingsStore.all
 
   const [youtubeTotals, twitchTotals] = await Promise.all([
-    youtube.connected ? getYouTubeTotals().catch(() => null) : Promise.resolve(null),
-    twitch.connected
-      ? getTwitchTotals(secureStore.get('twitch')!.accountId!, twitch.accountName ?? '').catch(() => null)
+    settings.youtubeChannelId ? getYouTubeTotals().catch(() => null) : Promise.resolve(null),
+    settings.twitchUserId
+      ? getTwitchTotals(settings.twitchUserId, settings.twitchDisplayName ?? '').catch(() => null)
       : Promise.resolve(null)
   ])
 
@@ -27,25 +28,24 @@ export async function getDashboard(): Promise<DashboardSnapshot> {
 export async function syncNow(platform?: 'youtube' | 'twitch'): Promise<SyncResult[]> {
   const results: SyncResult[] = []
   const targets: Array<'youtube' | 'twitch'> = platform ? [platform] : ['youtube', 'twitch']
+  const settings = settingsStore.all
 
   for (const p of targets) {
     const syncedAt = new Date().toISOString()
     try {
       if (p === 'youtube') {
-        const secrets = secureStore.get('youtube')
-        if (!secrets?.accessToken) {
-          results.push({ platform: p, ok: false, message: 'Not connected', syncedAt })
+        if (!settings.youtubeChannelId) {
+          results.push({ platform: p, ok: false, message: 'No channel set', syncedAt })
           continue
         }
         const totals = await getYouTubeTotals()
         dataStore.addGrowthPoint({ date: syncedAt.slice(0, 10), youtubeSubscribers: totals.subscribers })
       } else {
-        const secrets = secureStore.get('twitch')
-        if (!secrets?.accountId) {
-          results.push({ platform: p, ok: false, message: 'Not connected', syncedAt })
+        if (!settings.twitchUserId) {
+          results.push({ platform: p, ok: false, message: 'No channel set', syncedAt })
           continue
         }
-        const totals = await getTwitchTotals(secrets.accountId, secrets.accountName ?? '')
+        const totals = await getTwitchTotals(settings.twitchUserId, settings.twitchDisplayName ?? '')
         dataStore.addGrowthPoint({ date: syncedAt.slice(0, 10), twitchFollowers: totals.followers })
       }
       dataStore.setLastSynced(p, syncedAt)
