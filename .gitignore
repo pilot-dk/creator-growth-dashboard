@@ -9,3 +9,6 @@ build
 .env.local
 !.env.example
 *.tsbuildinfo
+
+# Local Claude Code session state
+.claude/
