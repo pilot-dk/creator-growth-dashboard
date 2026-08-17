@@ -1,0 +1,31 @@
+appId: com.pilotdk.creatorgrowthdashboard
+productName: Creator Growth Dashboard
+copyright: Copyright © 2026 djdaka
+
+directories:
+  output: release
+
+files:
+  - out/**/*
+  - package.json
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+  # No Apple Developer certificate is wired up for this open-source build, so
+  # we ship unsigned/unnotarized. Users may need to right-click → Open the
+  # first time (documented in the README).
+  identity: null
+  hardenedRuntime: false
+
+dmg:
+  title: 'Creator Growth Dashboard'
+
+publish:
+  provider: github
+  owner: pilot-dk
+  repo: creator-growth-dashboard
