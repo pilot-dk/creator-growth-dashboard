@@ -10,6 +10,7 @@ Native macOS app (Apple Silicon). Everything runs locally — there is no backen
 - **Best days & times** — best day to publish on YouTube, plus a Twitch day×hour viewer heatmap built from live sessions.
 - **Twitch retention by game** — end-of-stream viewer retention and peak/average viewers per game, plus a live-updating drop-off chart while you're streaming.
 - **YouTube retention curves** *(optional)* — real per-video audience retention with the biggest drop-off point flagged automatically.
+- **Suggestions** — what to make next, derived from your own numbers: which game holds viewers best, which slot draws the biggest audience, which uploads beat your median, and when your posting cadence slips. Plus a live view of which Twitch categories are realistically reachable, and a topic search to check a video idea against what's actually performing.
 
 ## Setup
 
@@ -45,6 +46,8 @@ Copy `.env.example` to `.env` and fill in:
 **Twitch's public API doesn't expose historical viewer-count-over-time** to third-party apps — that data only lives in Twitch's own creator dashboard. So this app builds its own history by polling your live viewer count once a minute while you're streaming and the app is open. That means retention-by-game and the day×hour heatmap start empty and fill in after your first few streams. Streams from before you installed the app show aggregate stats only.
 
 **YouTube's Analytics API has no hour-of-day dimension** for channel reports, so YouTube timing insight is day-of-week only. Without the optional sign-in, that day-of-week score is estimated from average views per upload; with it, it uses your real trailing-90-day watch history.
+
+**Suggestions are computed, not generated.** Every card states what it was derived from, and none appear until there's enough of your own data to support them — the app has no language model and invents nothing. The Twitch category table samples the 100 largest live streams per category, so its counts are a floor rather than a category total, and it describes the current moment rather than predicting anything.
 
 **Twitch subscriber counts** aren't shown — they'd require a broadcaster sign-in, which the app deliberately avoids. Follower growth is tracked instead.
 

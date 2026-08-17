@@ -2,13 +2,16 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   BestTimesResult,
   ConnectionStatus,
+  CategoryOpportunity,
   CredentialAvailability,
   DashboardSnapshot,
   Platform,
   SetupInfo,
+  SuggestionsResult,
   SyncResult,
   TwitchGameStat,
   TwitchSessionSummary,
+  VideoIdea,
   YouTubeRetentionResult,
   YouTubeVideoSummary
 } from '../shared/types'
@@ -44,6 +47,13 @@ const api = {
 
   getYouTubeRetention: (video: YouTubeVideoSummary): Promise<YouTubeRetentionResult> =>
     ipcRenderer.invoke('youtube:retention', video),
+
+  getInsights: (): Promise<SuggestionsResult> => ipcRenderer.invoke('suggestions:insights'),
+
+  getCategoryOpportunities: (): Promise<CategoryOpportunity[]> =>
+    ipcRenderer.invoke('suggestions:categories'),
+
+  researchTopic: (query: string): Promise<VideoIdea[]> => ipcRenderer.invoke('suggestions:research', query),
 
   getTwitchGameStats: (): Promise<TwitchGameStat[]> => ipcRenderer.invoke('twitch:gameStats'),
 

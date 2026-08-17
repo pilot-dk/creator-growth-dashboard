@@ -39,6 +39,46 @@ export interface SetupInfo {
   youtubeAccount: ConnectionStatus
 }
 
+/** A single actionable recommendation derived from the user's own data. */
+export interface Insight {
+  id: string
+  platform: Platform | 'both'
+  severity: 'good' | 'opportunity' | 'warning'
+  title: string
+  detail: string
+  /** Plain-language statement of what this was computed from. */
+  basis: string
+}
+
+export interface CategoryOpportunity {
+  gameId: string
+  gameName: string
+  boxArtUrl?: string
+  /** Total viewers across the sampled streams — a floor, not the category total. */
+  totalViewers: number
+  /** Number of live streams sampled (capped at 100 by the API page size). */
+  channelCount: number
+  viewersPerChannel: number
+  /** Share of the sampled (largest 100) streams under 50 viewers — how attainable the category's front page is. */
+  smallStreamerShare: number
+  /** True when the user has streamed this game before. */
+  streamedBefore: boolean
+}
+
+export interface VideoIdea {
+  videoId: string
+  title: string
+  channelTitle: string
+  publishedAt: string
+  thumbnailUrl?: string
+  views: number
+}
+
+export interface SuggestionsResult {
+  insights: Insight[]
+  notes: string[]
+}
+
 export interface GrowthPoint {
   date: string // ISO date, day granularity
   youtubeSubscribers?: number

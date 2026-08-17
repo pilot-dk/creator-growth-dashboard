@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { YouTubeRetentionResult, YouTubeVideoSummary } from '@shared/types'
+import type { SetupInfo, YouTubeRetentionResult, YouTubeVideoSummary } from '@shared/types'
 import { useDashboard } from '../state/DashboardContext'
 import EmptyState from '../components/EmptyState'
 import { formatNumber } from '../lib/format'
@@ -12,6 +12,12 @@ export default function YouTubeRetention(): JSX.Element {
   const [retention, setRetention] = useState<YouTubeRetentionResult | null>(null)
   const [loadingRetention, setLoadingRetention] = useState(false)
   const [videoError, setVideoError] = useState<string | null>(null)
+  const [setup, setSetup] = useState<SetupInfo | null>(null)
+  const [connecting, setConnecting] = useState(false)
+
+  useEffect(() => {
+    void window.api.getSetup().then(setSetup)
+  }, [])
 
   useEffect(() => {
     if (!dashboard?.youtube.connected) return
@@ -24,18 +30,22 @@ export default function YouTubeRetention(): JSX.Element {
       .catch((err) => setVideoError((err as Error).message))
   }, [dashboard?.youtube.connected])
 
+  const signedIn = setup?.youtubeAccount.connected ?? false
+  const oauthAvailable = setup?.credentials.youtubeOAuth ?? false
+
   useEffect(() => {
-    if (!selected) return
+    if (!selected || !signedIn) return
     setLoadingRetention(true)
     setRetention(null)
+    setVideoError(null)
     window.api
       .getYouTubeRetention(selected)
       .then(setRetention)
       .catch((err) => setVideoError((err as Error).message))
       .finally(() => setLoadingRetention(false))
-  }, [selected])
+  }, [selected, signedIn])
 
-  if (dashboardLoading) return <div className="page-loading">Loading…</div>
+  if (dashboardLoading || !setup) return <div className="page-loading">Loading…</div>
 
   if (!dashboard?.youtube.connected) {
     return (
@@ -44,11 +54,61 @@ export default function YouTubeRetention(): JSX.Element {
           <h1>YouTube Retention</h1>
         </header>
         <EmptyState
-          title="Connect YouTube first"
-          description="Real per-video audience retention comes straight from the YouTube Analytics API."
+          title="Add your YouTube channel first"
+          description="Paste your channel link in Settings to get started."
           ctaLabel="Go to Settings"
           ctaTo="/settings"
         />
+      </div>
+    )
+  }
+
+  // Retention is private data, so it needs owner sign-in — explain that here
+  // rather than letting the API call fail with a raw error.
+  if (!signedIn) {
+    return (
+      <div className="page">
+        <header className="page-header">
+          <h1>YouTube Retention</h1>
+          <p>Where viewers drop off in each video, straight from YouTube Analytics.</p>
+        </header>
+        <div className="panel">
+          <div className="panel-header">
+            <h2>Sign in to unlock retention</h2>
+            <p>
+              Retention curves are private channel data, so YouTube only releases them to the channel owner.
+              This is the one feature in the app that needs you to sign in — everything else works without it.
+            </p>
+          </div>
+          {oauthAvailable ? (
+            <>
+              <button
+                className="btn btn-primary"
+                disabled={connecting}
+                onClick={async () => {
+                  setConnecting(true)
+                  setVideoError(null)
+                  try {
+                    await window.api.connectYouTubeAccount()
+                    setSetup(await window.api.getSetup())
+                  } catch (err) {
+                    setVideoError((err as Error).message)
+                  } finally {
+                    setConnecting(false)
+                  }
+                }}
+              >
+                {connecting ? 'Waiting for browser…' : 'Connect YouTube account'}
+              </button>
+              {videoError && <div className="form-error">{videoError}</div>}
+            </>
+          ) : (
+            <p className="note">
+              This build has no Google OAuth client configured, so sign-in isn't available yet. Adding one is a
+              short one-time step — see the README section on YouTube retention.
+            </p>
+          )}
+        </div>
       </div>
     )
   }

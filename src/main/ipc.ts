@@ -13,6 +13,7 @@ import { setTwitchChannel, clearTwitchChannel, getTwitchStatus } from './service
 import { getDashboard, syncNow } from './services/dashboard'
 import { computeBestTimes } from './services/bestTimes'
 import { getTwitchGameStats, listTwitchSessions } from './services/twitchInsights'
+import { getInsights, getCategoryOpportunities, researchTopic } from './services/suggestions'
 import { getCredentialAvailability } from './config/credentials'
 import { settingsStore } from './store/settingsStore'
 import { secureStore } from './store/secureStore'
@@ -68,6 +69,12 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('youtube:listVideos', () => listRecentYouTubeVideos())
 
   ipcMain.handle('youtube:retention', (_e, video: YouTubeVideoSummary) => getYouTubeRetention(video))
+
+  ipcMain.handle('suggestions:insights', () => getInsights())
+
+  ipcMain.handle('suggestions:categories', () => getCategoryOpportunities())
+
+  ipcMain.handle('suggestions:research', (_e, query: string) => researchTopic(query))
 
   ipcMain.handle('twitch:gameStats', () => getTwitchGameStats())
 

@@ -3,6 +3,7 @@ import { useDashboard } from '../state/DashboardContext'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: '◈' },
+  { to: '/suggestions', label: 'Suggestions', icon: '✦' },
   { to: '/best-times', label: 'Best Days & Times', icon: '◷' },
   { to: '/youtube-retention', label: 'YouTube Retention', icon: '▶' },
   { to: '/twitch-insights', label: 'Twitch Insights', icon: '⬢' },
