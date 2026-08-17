@@ -25,10 +25,18 @@ Twitch's public API doesn't expose historical viewer-count-over-time for past br
 
 ### 1. Download
 
-Grab the latest `.dmg` from the [Releases page](../../releases). Since this build isn't signed with an Apple Developer certificate, macOS Gatekeeper will flag it as from an unidentified developer the first time:
+Grab the latest `.dmg` from the [Releases page](../../releases) — pick the **Apple Silicon** build for M1/M2/M3/M4 Macs, or **Intel** for older Macs. Since this build isn't signed with a paid Apple Developer certificate, macOS Gatekeeper will flag it as from an unidentified developer the first time:
 
 1. Move **Creator Growth Dashboard.app** to Applications.
-2. Right-click the app → **Open** → confirm **Open** in the dialog. (Only needed once.)
+2. Right-click the app → **Open** → confirm **Open** in the dialog. (Only needed once.) If you don't see an **Open** option, check **System Settings → Privacy & Security** — there's usually an **Open Anyway** button there after the first blocked attempt.
+
+**If macOS instead says the app "is damaged and can't be opened"**: that's Gatekeeper being overly aggressive about unsigned software, not actual corruption. Open Terminal and run:
+
+```bash
+xattr -cr "/Applications/Creator Growth Dashboard.app"
+```
+
+then open it normally. (This shouldn't happen on v0.1.1+ — the app is ad-hoc signed specifically to avoid this — but browsers occasionally quarantine downloads in ways that still trip it.)
 
 ### 2. Connect your accounts
 

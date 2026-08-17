@@ -9,16 +9,19 @@ files:
   - out/**/*
   - package.json
 
+afterPack: scripts/afterPack.cjs
+
 mac:
   category: public.app-category.productivity
   target:
     - target: dmg
-      arch: [universal]
+      arch: [x64, arm64]
     - target: zip
-      arch: [universal]
+      arch: [x64, arm64]
   # No Apple Developer certificate is wired up for this open-source build, so
-  # we ship unsigned/unnotarized. Users may need to right-click → Open the
-  # first time (documented in the README).
+  # electron-builder's own signing/notarization is disabled — scripts/afterPack.cjs
+  # ad-hoc signs the bundle instead (see that file for why). Users still need to
+  # right-click → Open the first time (documented in the README).
   identity: null
   hardenedRuntime: false
 
