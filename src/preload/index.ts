@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   BestTimesResult,
   ConnectionStatus,
+  CredentialAvailability,
   DashboardSnapshot,
   Platform,
   SetupInfo,
@@ -24,6 +25,12 @@ const api = {
 
   getConnectionStatus: (platform: Platform): Promise<ConnectionStatus> =>
     ipcRenderer.invoke('connection:status', platform),
+
+  saveCredentials: (input: {
+    youtubeApiKey?: string
+    twitchClientId?: string
+    twitchClientSecret?: string
+  }): Promise<CredentialAvailability> => ipcRenderer.invoke('credentials:save', input),
 
   connectYouTubeAccount: (): Promise<ConnectionStatus> => ipcRenderer.invoke('youtubeAccount:connect'),
 

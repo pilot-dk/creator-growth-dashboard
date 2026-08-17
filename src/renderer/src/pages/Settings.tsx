@@ -19,12 +19,16 @@ export default function Settings(): JSX.Element {
 
   const { credentials, channels, youtubeAccount } = setup
 
+  const needsKeys = !credentials.youtubePublic || !credentials.twitch
+
   return (
     <div className="page">
       <header className="page-header">
         <h1>Settings</h1>
         <p>Paste your channel links and you're done. Everything stays on this Mac.</p>
       </header>
+
+      {needsKeys && <ApiKeysCard credentials={credentials} onDone={reload} />}
 
       <ChannelCard
         platform="youtube"
@@ -87,6 +91,115 @@ export default function Settings(): JSX.Element {
           <ConnectAccountButton onDone={reload} />
         )}
       </div>
+    </div>
+  )
+}
+
+function ExternalLink({ href, children }: { href: string; children: ReactNode }): JSX.Element {
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        e.preventDefault()
+        window.api.openExternal(href)
+      }}
+    >
+      {children}
+    </a>
+  )
+}
+
+/**
+ * Only rendered when the build has no keys compiled in. A personal build
+ * bakes them via .env and never shows this.
+ */
+function ApiKeysCard({
+  credentials,
+  onDone
+}: {
+  credentials: SetupInfo['credentials']
+  onDone: () => Promise<void>
+}): JSX.Element {
+  const [youtubeApiKey, setYoutubeApiKey] = useState('')
+  const [twitchClientId, setTwitchClientId] = useState('')
+  const [twitchClientSecret, setTwitchClientSecret] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: FormEvent): Promise<void> {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await window.api.saveCredentials({ youtubeApiKey, twitchClientId, twitchClientSecret })
+      await onDone()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <h2>API keys</h2>
+        <p>
+          One-time step for this build. Keys are stored encrypted in your Mac's keychain and used only to talk
+          directly to YouTube and Twitch.
+        </p>
+      </div>
+
+      <form className="credential-form" onSubmit={handleSubmit}>
+        {!credentials.youtubePublic && (
+          <label>
+            YouTube API key —{' '}
+            <ExternalLink href="https://console.cloud.google.com/apis/credentials">
+              get one here
+            </ExternalLink>{' '}
+            (enable "YouTube Data API v3", then Create credentials → API key)
+            <input
+              type="password"
+              value={youtubeApiKey}
+              onChange={(e) => setYoutubeApiKey(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+        )}
+
+        {!credentials.twitch && (
+          <>
+            <label>
+              Twitch Client ID —{' '}
+              <ExternalLink href="https://dev.twitch.tv/console/apps/create">register an app</ExternalLink>{' '}
+              (set the redirect URL to <code>http://localhost</code>; it's never used)
+              <input
+                type="text"
+                value={twitchClientId}
+                onChange={(e) => setTwitchClientId(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <label>
+              Twitch Client Secret
+              <input
+                type="password"
+                value={twitchClientSecret}
+                onChange={(e) => setTwitchClientSecret(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+          </>
+        )}
+
+        {error && <div className="form-error">{error}</div>}
+        <button className="btn btn-primary" type="submit" disabled={busy}>
+          {busy ? 'Saving…' : 'Save keys'}
+        </button>
+      </form>
     </div>
   )
 }

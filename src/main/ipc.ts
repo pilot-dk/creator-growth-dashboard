@@ -15,6 +15,7 @@ import { computeBestTimes } from './services/bestTimes'
 import { getTwitchGameStats, listTwitchSessions } from './services/twitchInsights'
 import { getCredentialAvailability } from './config/credentials'
 import { settingsStore } from './store/settingsStore'
+import { secureStore } from './store/secureStore'
 import type { Platform, YouTubeVideoSummary } from '../shared/types'
 
 export function registerIpcHandlers(): void {
@@ -37,6 +38,24 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('connection:status', (_e, platform: Platform) =>
     platform === 'youtube' ? getYouTubeStatus() : getTwitchStatus()
+  )
+
+  ipcMain.handle(
+    'credentials:save',
+    (_e, input: { youtubeApiKey?: string; twitchClientId?: string; twitchClientSecret?: string }) => {
+      if (input.youtubeApiKey) {
+        secureStore.set('youtubeApiKey', { clientId: input.youtubeApiKey.trim(), clientSecret: '' })
+      }
+      if (input.twitchClientId && input.twitchClientSecret) {
+        const existing = secureStore.get('twitch')
+        secureStore.set('twitch', {
+          ...existing,
+          clientId: input.twitchClientId.trim(),
+          clientSecret: input.twitchClientSecret.trim()
+        })
+      }
+      return getCredentialAvailability()
+    }
   )
 
   ipcMain.handle('youtubeAccount:connect', () => connectYouTubeAccount())
